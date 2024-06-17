@@ -33,7 +33,6 @@ jobs:
           output-file: "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
           windows-icon-from-ico: assets/icon.ico
           windows-uac-admin: true
-          enable-plugins: pyqt5
 
       - name: Calcaulate Client checksum
         run: Get-FileHash "build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
