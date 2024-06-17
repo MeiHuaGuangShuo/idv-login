@@ -26,18 +26,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build with PyInstaller
-        run: pyinstaller -F src/main.py -n idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe -i assets/icon.ico --version-file assets/version.txt
-
+ # Build python script into a stand-alone
+      - uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: src/main.py
+          onefile: true
+          output-file: "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
+          windows-icon-from-ico: assets/icon.ico
+          windows-uac-admin: true
 
       - name: Calcaulate Client checksum
-        run: Get-FileHash "dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > dist/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
+        run: Get-FileHash "build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64-${{ matrix.python-version }}
-          path: dist/
+          path: |
+            build/*.exe
       - name: Release body
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -58,5 +65,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            **/*.exe
-            **/*.sha256
+            build/*.exe
+            build/*.sha256

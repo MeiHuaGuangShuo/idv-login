@@ -2,6 +2,8 @@ name: Build Stable and Release
 
 on:
   push:
+    tags:
+      - "v[0-100]+.[0-9]+.[0-1000]-stable"
   workflow_dispatch:
   
 jobs:
