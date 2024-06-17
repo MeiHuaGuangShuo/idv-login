@@ -1,7 +1,7 @@
 name: Build Stable and Release
 
 on:
-  commit:
+  push:
   workflow_dispatch:
   
 jobs:
