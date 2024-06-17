@@ -29,12 +29,12 @@ from cryptography.hazmat.primitives.serialization import (
     PrivateFormat,
     NoEncryption,
 )
-from logutil import setup_logger
+from logger import logger
 
 
 class certmgr:
     def __init__(self) -> None:
-        self.logger = setup_logger(__name__)
+        self.logger = logger
         pass
 
     def generate_private_key(self, bits: int):

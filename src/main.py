@@ -26,6 +26,8 @@ import os
 import sys
 import ctypes
 import atexit
+import signal
+import argparse
 import win32api
 import win32con
 import requests
@@ -36,17 +38,24 @@ from hostmgr import hostmgr
 from proxymgr import proxymgr
 from channelmgr import ChannelManager
 from envmgr import genv
-from logutil import setup_logger
+from logger import logger
 
 m_certmgr = None
 m_hostmgr = None
 m_proxy = None
+on_exit = False
 
 
-def handle_exit():
+def handle_exit(*_):
+    global on_exit
+    if on_exit:
+        return True
+    on_exit = True
     logger.info("程序关闭，正在清理 hosts ！")
-    m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
-    print("再见!")
+    if m_hostmgr is not None:
+        m_hostmgr.remove(genv.get("DOMAIN_TARGET"))  # 无论如何退出都应该进行清理
+    logger.info("再见!")
+    sys.exit(0)
 
 
 def ctrl_handler(ctrl_type):
@@ -62,7 +71,8 @@ def initialize():
         ctypes.windll.shell32.ShellExecuteW(
             None, "runas", sys.executable, " ".join(sys.argv), None, 1
         )
-        sys.exit()
+        logger.error(f"没有管理员权限，已经启动新的程序，本程序将自动退出")
+        sys.exit(1)
 
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
@@ -73,6 +83,7 @@ def initialize():
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+    
 
     # handle exit
     atexit.register(handle_exit)
@@ -142,18 +153,20 @@ def welcome():
 
 
 if __name__ == "__main__":
-    # 设置控制台事件处理器
-    kernel32 = ctypes.WinDLL("kernel32")
-    HandlerRoutine = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)
-    handle_ctrl = HandlerRoutine(ctrl_handler)
-    kernel32.SetConsoleCtrlHandler(handle_ctrl, True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-a', '--auto-login', action='store_true')
+    args = parser.parse_args()
+    is_auto_login = "True" if bool(args.auto_login) or os.path.exists("AutoLogin") else ""
+    genv.set("AUTO_LOGIN", is_auto_login)
+    if genv.get("AUTO_LOGIN"):
+        logger.info("已经启用自动登录（仅在只有一个账号的情况下）")
+    signal.signal(signal.SIGINT, handle_exit)
 
     genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))
     if not os.path.exists(genv.get("FP_WORKDIR")):
         os.mkdir(genv.get("FP_WORKDIR"))
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
-    print(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
-    logger = setup_logger(__name__)
+    logger.info(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
     try:
         welcome()
         initialize()
@@ -197,9 +210,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         logger.exception(
-            f"发生未处理的异常:{e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt",
-            stack_info=True,
-            exc_info=True,
+                f"发生未处理的异常:{e.__class__.__name__}: {e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
         )
-
-        input("拦截退出事件.")
+    finally:
+        handle_exit()

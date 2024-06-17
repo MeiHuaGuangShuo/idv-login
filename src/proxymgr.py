@@ -21,7 +21,7 @@ from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 from envmgr import genv
 from channelmgr import ChannelManager
-from logutil import setup_logger
+from loguru import logger
 
 import socket
 import requests
@@ -31,9 +31,10 @@ import sys
 import psutil
 import const
 import subprocess
+from flask.logging import default_handler
 
 app = Flask(__name__)
-logger=setup_logger(__name__)
+app.logger.removeHandler(default_handler)
 
 loginMethod = [
     {
@@ -251,7 +252,8 @@ def handle_create_login():
         new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
         return jsonify(new_config)
     except:
-        return proxy(request)
+        return proxy(request) 
+                
 
 @app.route("/_idv-login/manualChannels",methods=["GET"])
 def _manual_list():
@@ -305,6 +307,25 @@ def handle_qrcode_query():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         return proxy(request)
     else:
+        try:
+            if genv.get("CHANNELS_HELPER"):
+                body = genv.get("CHANNELS_HELPER").list_channels(request.args["game_id"])
+            else:
+                body = "Pass Auto Login"
+        except Exception as e:
+            pass
+        else:
+            if genv.get("AUTO_LOGIN"):
+                if len(body) == 1:
+                    logger.info("检测到仅有一个ID，正在尝试自动登录")
+                    genv.set("CHANNEL_ACCOUNT_SELECTED",body[0]["uuid"])
+                    if genv.get("CACHED_QRCODE_DATA"):
+                        data=genv.get("CACHED_QRCODE_DATA")
+                        genv.get("CHANNELS_HELPER").simulate_scan(body[0]["uuid"],data["uuid"],data["game_id"])
+                    if genv.get("CHANNEL_ACCOUNT_SELECTED") == body[0]["uuid"]:
+                        logger.success("自动登录成功")
+                    else:
+                        logger.warning("自动登录失败")
         resp: Response = proxy(request)
         qrCodeStatus = resp.get_json()["qrcode"]["status"]
         if qrCodeStatus == 2 and genv.get("CHANNEL_ACCOUNT_SELECTED") == "":
@@ -427,8 +448,8 @@ class proxymgr:
             )
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
             logger.info("拦截成功! 您现在可以打开游戏了")
-            logger.warn("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
-            logger.info("登入账号且已经··进入游戏··后，您可以关闭本工具。")
+            logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
+            logger.opt(colors=True).info("登入账号且已经<green>进入游戏</>后，您可以关闭本工具。")
             server.serve_forever()
             return True
         else:

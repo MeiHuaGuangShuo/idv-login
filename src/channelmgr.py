@@ -25,7 +25,7 @@ import requests
 
 from envmgr import genv
 from const import manual_login_channels
-from logutil import setup_logger
+from logger import logger
 
 
 class channel:
@@ -99,7 +99,7 @@ class channel:
 
 class ChannelManager:
     def __init__(self):
-        self.logger = setup_logger(__name__)
+        self.logger = logger
         self.channels = []
         from channelHandler.miChannelHandler import miChannel
 
@@ -271,7 +271,7 @@ class ChannelManager:
                         return False
                 except:
                     self.logger.error(
-                        f"模拟扫码请求失败", stack_info=True, exc_info=True
+                        "模拟扫码请求失败"
                     )
                     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
                     return False

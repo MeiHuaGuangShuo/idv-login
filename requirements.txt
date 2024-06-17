@@ -1,11 +1,12 @@
 cryptography
 Faker
 Flask
+loguru
 gevent
 psutil
 pycryptodome
 pyperclip
-Requests
+requests
 requests_toolbelt
 pyinstaller
 pywin32

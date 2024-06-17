@@ -20,7 +20,7 @@ import random
 import requests
 from envmgr import genv
 import socket
-from logutil import setup_logger
+from logger import logger
 
 # Resource Record Types
 A = 1
@@ -41,7 +41,7 @@ class InvalidHostName(Exception):
 class SimulatedDNS(object):
 
     def __init__(self):
-        self.logger = setup_logger(__name__)
+        self.logger = logger
         self.hostname_to_ip = {}
 
     def gethostbyname(self, hostname):
@@ -72,7 +72,7 @@ class SecureDNS(object):
         edns_client_subnet="0.0.0.0/0",
         random_padding=True,
     ):
-        self.logger = setup_logger(__name__)
+        self.logger = logger
         self.url = "https://dns.pub/dns-query"
         self.params = {
             "type": query_type,
@@ -80,7 +80,7 @@ class SecureDNS(object):
             "edns_client_subnet": edns_client_subnet,
             "random_padding": random_padding,
         }
-        self.logger.info("DNS服务器地址为 %s", self.url)
+        self.logger.info(f"DNS服务器地址为 {self.url}")
 
     def gethostbyname(self, hostname):
         """mimic functionality of socket.gethostbyname"""

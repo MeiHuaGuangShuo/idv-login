@@ -1,22 +1,22 @@
 # IdentityV-login-helper(绕过注册时间限制-一键法)
 ![Language](https://img.shields.io/badge/language-python-blue.svg)
-![GitHub License](https://img.shields.io/github/license/Alexander-Porter/idv-login)
-![GitHub Release](https://img.shields.io/github/v/release/Alexander-Porter/idv-login)
-![Gitea Last Commit](https://img.shields.io/github/commits-since/Alexander-Porter/idv-login/latest)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Alexander-Porter/idv-login/build-stable.yaml)
+![GitHub License](https://img.shields.io/github/license/MeiHuaGuangShuo/idv-login)
+![GitHub Release](https://img.shields.io/github/v/release/MeiHuaGuangShuo/idv-login)
+![Gitea Last Commit](https://img.shields.io/github/commits-since/MeiHuaGuangShuo/idv-login/latest)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/MeiHuaGuangShuo/idv-login/build-stable.yaml)
 
 
-项目仓库：[click](https://github.com/Alexander-Porter/idv-login)
+原项目仓库：[click](https://github.com/Alexander-Porter/idv-login)
 QQ群：[click](https://www.bilibili.com/opus/920131433914171416)
 视频教程（已过时）：[click](https://www.bilibili.com/video/BV1qM4m1Q7i8)
 
 ## 1. 使用方式
 
 ### 特别注意
-1. 如果遇到 ``pid=4`` 的进程占用了443端口，请尝试使用``netsh http show servicestate``命令排查使用系统服务占用443端口的程序，该问题将在下一个版本中修复。
+1. 如果遇到 ``pid=4`` 的进程占用了443端口，请尝试使用``netsh http show servicestate``命令排查使用系统服务占用443端口的程序，该问题将在下一个版本中修复(不是这个仓库)。
 
 ### 使用预编译版本
-1. 从本仓库的``release``页下载最新版本的可执行文件(*.exe)
+1. 从本仓库的``release`` / ``action`` 页下载最新版本的可执行文件(*.exe)
 - **注:如果你使用的是`Windows7`，请下载带有`Py3.8`后缀的版本；如果你使用的是`Windows8`及以上版本，两者均可，推荐下载带有`Py3.12`后缀的版本**)
 - 下载完成后，**强烈建议**校验其``sha256``是否与 ``release``中``checksum.txt``的值相同。
     如果``sha256``不同，那么您下载的文件是不安全的，可能存在盗号风险，请检查您的网络环境并重新在**官方仓库**下载文件。

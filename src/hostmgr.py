@@ -17,7 +17,7 @@
  """
 
 from python_hosts import Hosts, HostsEntry, HostsException
-from logutil import setup_logger
+from logger import logger
 
 import os
 import sys
@@ -26,7 +26,7 @@ FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
 
 class hostmgr:
     def __init__(self) -> None:
-        self.logger=setup_logger(__name__)
+        self.logger=logger
         if (os.path.isfile(FN_HOSTS) == False):
             self.logger.warning(f"Hosts文件不存在，尝试创建中...")
             try:
