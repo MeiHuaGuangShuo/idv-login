@@ -42,8 +42,8 @@ jobs:
         with:
           name: windows-x86_64-${{ matrix.python-version }}
           path: |
-            **/*.exe
-            **/*.sha256
+            build/*.exe
+            build/*.sha256
       - name: Release body
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -64,5 +64,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            **/*.exe
-            **/*.sha256
+            build/*.exe
+            build/*.sha256
