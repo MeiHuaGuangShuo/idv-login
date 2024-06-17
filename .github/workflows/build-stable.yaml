@@ -30,7 +30,10 @@ jobs:
           nuitka-version: main
           script-name: src/main.py
           onefile: true
-          output-filename: "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
+          output-file: "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
+          windows-icon-from-ico: assets/icon.ico
+          windows-uac-admin: true
+          enable-plugins: pyqt5
 
       - name: Calcaulate Client checksum
         run: Get-FileHash "build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
@@ -39,7 +42,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64-${{ matrix.python-version }}
-          path: build/
+          path: |
+            **/*.exe
+            **/*.sha256
       - name: Release body
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -57,7 +62,7 @@ jobs:
 
       - name: Release
         uses: softprops/action-gh-release@v2
-        # if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             **/*.exe
