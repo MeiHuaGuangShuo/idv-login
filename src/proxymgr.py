@@ -21,17 +21,21 @@ from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 from envmgr import genv
 from channelmgr import ChannelManager
-from loguru import logger
+from logger import logger
+import ctypes
+from ctypes import wintypes
 
 import socket
 import requests
 import json
+import time
 import os
 import sys
 import psutil
 import const
 import subprocess
 from flask.logging import default_handler
+
 
 app = Flask(__name__)
 app.logger.removeHandler(default_handler)
@@ -242,6 +246,7 @@ def handle_create_login():
     try:
         resp: Response = proxy(request)
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
+        genv.set("AutoLoginCheck", "Checked")
         data={
             "uuid":resp.get_json()["uuid"],
             "game_id":request.args["game_id"]
@@ -315,15 +320,18 @@ def handle_qrcode_query():
         except Exception as e:
             pass
         else:
-            if genv.get("AUTO_LOGIN"):
-                if len(body) == 1:
-                    logger.info("检测到仅有一个ID，正在尝试自动登录")
+            if genv.get("AUTO_LOGIN") and genv.get("AutoLoginCheck") is not None:
+                if len(body) == 1: 
+                    logger.info("正在尝试自动登录")
                     genv.set("CHANNEL_ACCOUNT_SELECTED",body[0]["uuid"])
                     if genv.get("CACHED_QRCODE_DATA"):
                         data=genv.get("CACHED_QRCODE_DATA")
                         genv.get("CHANNELS_HELPER").simulate_scan(body[0]["uuid"],data["uuid"],data["game_id"])
                     if genv.get("CHANNEL_ACCOUNT_SELECTED") == body[0]["uuid"]:
                         logger.success("自动登录成功")
+                        logger.warning("程序将在 5s 后退出")
+                        time.sleep(5)
+                        sys.exit(0)
                     else:
                         logger.warning("自动登录失败")
         resp: Response = proxy(request)
@@ -447,8 +455,10 @@ class proxymgr:
                 application=app,
             )
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
-            logger.info("拦截成功! 您现在可以打开游戏了")
-            logger.warning("如果您在之前已经打开了游戏，请关闭游戏后重新打开，否则工具不会生效！")
+            if bool(any(p.info['name'] == "dwrg.exe" for p in psutil.process_iter(['name']))):
+                logger.warning("检测到游戏已经启动，请关闭游戏后重新打开，否则工具不会生效！")
+            else:
+                logger.info("拦截成功! 您现在可以打开游戏了")
             logger.opt(colors=True).info("登入账号且已经<green>进入游戏</>后，您可以关闭本工具。")
             server.serve_forever()
             return True
