@@ -30,6 +30,7 @@ jobs:
           nuitka-version: main
           script-name: src/main.py
           onefile: true
+          output-filename: "idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe"
 
       - name: Calcaulate Client checksum
         run: Get-FileHash "build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
