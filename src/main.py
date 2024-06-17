@@ -207,7 +207,8 @@ if __name__ == "__main__":
         logger.info("正在启动代理服务器...")
 
         m_proxy.run()
-
+    except (SystemExit, gevent.exceptions.InvalidSwitchError):
+        pass
     except Exception as e:
         logger.exception(
                 f"发生未处理的异常:{e.__class__.__name__}: {e}.日志路径:{genv.get('FP_WORKDIR')}下的log.txt"
