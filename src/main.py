@@ -25,14 +25,19 @@ import gevent
 monkey.patch_all()
 import os
 import sys
+import time
 import ctypes
 import atexit
 import signal
+import psutil
 import argparse
 import win32api
+import win32file
 import win32con
 import requests
 import requests.packages
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from certmgr import certmgr
 from hostmgr import hostmgr
@@ -145,6 +150,7 @@ def initialize():
 def welcome():
     print("[+] 欢迎使用第五人格登陆助手 version 5.2.2-beta")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
+    print(" - 本项目地址 : https://github.com/MeiHuaGuangShuo/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
     print(" - 本程序使用GNU GPLv3协议开源， 严禁将本程序用于任何商业行为！")
     print(" - This program is free software: you can redistribute it and/or modify")
@@ -153,14 +159,102 @@ def welcome():
     print(" - (at your option) any later version.")
 
 
+def get_drives():
+    drives = [i for i in win32api.GetLogicalDriveStrings().split('\x00') if i]
+    rdrives = [d for d in drives if win32file.GetDriveType(d) == win32file.DRIVE_FIXED]
+    return rdrives
+
+
+def traverse_files(path, max_deepth: int = 255, deepth=0):
+    files = []
+    if deepth > max_deepth:
+        # print('Out!', path)
+        return []
+    try:
+        handle = win32file.FindFilesW(path + '\\*')
+        for h in handle:
+            filename = h[8]
+            if filename not in ('.', '..', 'Windows', 'EFI', 'Temp'):
+                fullname = path + '\\' + filename
+                if win32file.GetFileAttributes(fullname) == win32file.FILE_ATTRIBUTE_DIRECTORY:
+                    files.extend(traverse_files(fullname, max_deepth=max_deepth, deepth=deepth+1))
+                else:
+                    size = h[5]
+                    files.append(fullname.replace('\\\\', '\\'))
+    except:
+        pass
+    return files
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    pool = ThreadPoolExecutor()
     parser.add_argument('-a', '--auto-login', action='store_true')
     args = parser.parse_args()
-    is_auto_login = "True" if bool(args.auto_login) or os.path.exists("AutoLogin") else ""
+
+    config_path = Path("config.json")
+    if not config_path.exists():
+        with open(config_path, 'w') as f:
+            json.dump({
+                    "AutoLogin": False,
+                    "ScanDeepth": 2,
+                    "GamePath": ""
+                }, f, indent=4, ensure_ascii=False)
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    def write_config():
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+    is_auto_login = "True" if bool(args.auto_login) or os.path.exists("AutoLogin") or config.get("AutoLogin") else ""
     genv.set("AUTO_LOGIN", is_auto_login)
     if genv.get("AUTO_LOGIN"):
         logger.info("已经启用自动登录（仅在只有一个账号的情况下）")
+    @logger.catch
+    def find_game():
+        logger.info(f"开始扫描游戏，扫描深度{config.get('ScanDeepth', 2)}")
+        drives = get_drives()
+        games = []
+        for d in drives:
+            files = traverse_files(d, config.get('ScanDeepth', 2))
+            files = [(x, x.split("\\")[-1]) for x in files]
+            files = [x[0] for x in files if x[1]=="dwrg.exe"]
+            games += files
+        logger.info("扫描完成")
+        if len(games) == 1:
+            config['GamePath'] = games[0]
+            logger.info(f"查找到的游戏路径: {games[0]}")
+            write_config()
+            start_game()
+        else:
+            logger.warning(f"查找到两个游戏路径，请手动填写路径至 {config_path.absolute()} 的 GamePath 目录。游戏目录：{', '.join(games)}")
+
+    def start_game():
+        if bool(any(p.info['name'] == "dwrg.exe" for p in psutil.process_iter(['name']))):
+            logger.warning("游戏已经启动，自动启动关闭")
+            return False
+        game_path = config.get("GamePath")
+        if not isinstance(game_path, str):
+            logger.error("无效的游戏路径")
+        if not game_path.endswith(".exe"):
+            logger.error(f"错误的游戏路径: {game_path}")
+        while not genv.get("PREPARED"):
+            time.sleep(0.5)
+        logger.info(f"程序已经就绪，开始启动游戏 {game_path}")
+        raw = os.getcwd()
+        os.chdir(Path(game_path).parent)
+        os.system("start " + game_path)
+        os.chdir(raw)
+        return True
+        
+            
+    if not config.get("GamePath"):
+        pool.submit(find_game)
+    elif config.get("GamePath") == "disabled":
+        pass
+    else:
+        pool.submit(start_game)
+            
+
     signal.signal(signal.SIGINT, handle_exit)
 
     genv.set("FP_WORKDIR", os.path.join(os.environ["PROGRAMDATA"], "idv-login"))

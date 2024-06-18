@@ -459,6 +459,7 @@ class proxymgr:
                 logger.warning("检测到游戏已经启动，请关闭游戏后重新打开，否则工具不会生效！")
             else:
                 logger.info("拦截成功! 您现在可以打开游戏了")
+                genv.set("PREPARED", "True")
             logger.opt(colors=True).info("登入账号且已经<green>进入游戏</>后，您可以关闭本工具。")
             server.serve_forever()
             return True

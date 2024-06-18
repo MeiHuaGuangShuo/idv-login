@@ -10,6 +10,21 @@
 QQ群：[click](https://www.bilibili.com/opus/920131433914171416)
 视频教程（已过时）：[click](https://www.bilibili.com/video/BV1qM4m1Q7i8)
 
+## 改变的函数 / 特点
+1. logger全部采用loguru
+2. 自动登录支持
+3. 自动启动游戏支持
+
+### 如何自动登录？
+启动程序加上 -a 或者在程序目录创建 AutoLogin 空文件或者在 `config.json` (随程序首次启动后创建) 中的 `AutoLogin` 选项改为 true
+
+### 如何取消自动扫描？
+在 `config.json` (随程序首次启动后创建) 中的 `GamePath` 选项改为 "disabled"
+
+### 自定义启动游戏位置
+在 `config.json` (随程序首次启动后创建) 中的 `GamePath` 选项填入游戏文件的**绝对路径**
+
+
 ## 1. 使用方式
 
 ### 特别注意
