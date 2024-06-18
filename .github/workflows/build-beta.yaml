@@ -43,27 +43,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64-${{ matrix.python-version }}
-          path: |
-            build/*.exe
-      - name: Release body
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          body_path: ext/${{github.ref_name}}-CHANGELOG
-  release:
-    needs: [build]
-    runs-on: ubuntu-latest
+          path: build/*.exe
+      
 
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            build/*.exe
-            build/*.sha256
