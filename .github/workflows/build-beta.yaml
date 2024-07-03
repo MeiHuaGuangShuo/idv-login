@@ -10,6 +10,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8",  "3.12"]
+        platform: ["windows-latest", "ubuntu-latest"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,7 +38,7 @@ jobs:
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.runs-on }}-${{ matrix.python-version }}
+          name: ${{ matrix.platform }}-${{ matrix.python-version }}
           path: build/*.exe
       
 
