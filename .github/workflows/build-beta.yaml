@@ -2,13 +2,11 @@ name: Build Beta
 
 on:
   push:
-    tags:
-      - "v[0-100]+.[0-9]+.[0-1000]-beta"
   workflow_dispatch:
   
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: [windows-latest, ubuntu-latest]
     strategy:
       matrix:
         python-version: ["3.8",  "3.12"]
@@ -36,13 +34,10 @@ jobs:
           windows-icon-from-ico: assets/icon.ico
           windows-uac-admin: true
 
-      - name: Calcaulate Client checksum
-        run: Get-FileHash "build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe" | select-object -ExpandProperty Hash > build/idv-login-${{github.ref_name}}-Py${{ matrix.python-version }}.exe.sha256
-
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x86_64-${{ matrix.python-version }}
+          name: ${{ matrix.runs-on }}-${{ matrix.python-version }}
           path: build/*.exe
       
 
