@@ -16,7 +16,6 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
 
-
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
 import gevent
@@ -34,57 +33,56 @@ import subprocess
 from flask.logging import default_handler
 
 
-
 app = Flask(__name__)
 app.logger.removeHandler(default_handler)
 
 
 loginMethod = [
     {
-        "name": "手机账号",
-        "icon_url": "",
+        "name"      : "手机账号",
+        "icon_url"  : "",
         "text_color": "",
-        "hot": True,
-        "type": 7,
+        "hot"       : True,
+        "type"      : 7,
         "icon_url_large": "",
     },
     {
-        "name": "快速游戏",
-        "icon_url": "",
+        "name"      : "快速游戏",
+        "icon_url"  : "",
         "text_color": "",
-        "hot": True,
-        "type": 2,
+        "hot"       : True,
+        "type"      : 2,
         "icon_url_large": "",
     },
     {
-        "login_url": "",
-        "name": "网易邮箱",
-        "icon_url": "",
+        "login_url" : "",
+        "name"      : "网易邮箱",
+        "icon_url"  : "",
         "text_color": "",
-        "hot": True,
-        "type": 1,
+        "hot"       : True,
+        "type"      : 1,
         "icon_url_large": "",
     },
     {
-        "login_url": "",
-        "name": "扫码登录",
-        "icon_url": "",
+        "login_url" : "",
+        "name"      : "扫码登录",
+        "icon_url"  : "",
         "text_color": "",
-        "hot": True,
-        "type": 17,
+        "hot"       : True,
+        "type"      : 17,
         "icon_url_large": "",
     },
 ]
 pcInfo = {
     "extra_unisdk_data": "",
-    "from_game_id": "h55",
+    "from_game_id"   : "h55",
     "src_app_channel": "netease",
-    "src_client_ip": "",
+    "src_client_ip"  : "",
     "src_client_type": 1,
-    "src_jf_game_id": "h55",
+    "src_jf_game_id" : "h55",
     "src_pay_channel": "netease",
     "src_sdk_version": "3.15.0",
-    "src_udid": "",
+    "src_udid"       : "",
 }
 
 g_req = requests.session()
@@ -110,11 +108,15 @@ def requestGetAsCv(request, cv):
         "transfer-encoding",
         "connection",
     ]
-    headers = [
-        (name, value)
-        for (name, value) in resp.raw.headers.items()
-        if name.lower() not in excluded_headers
-    ]
+    # headers = [
+    #     (name, value)
+    #     for (name, value) in resp.raw.headers.items()
+    #     if name.lower() not in excluded_headers
+    # ]
+    headers = {}
+    for name, value in resp.raw.headers.items():
+        if name.lower() not in excluded_headers:
+            headers[name] = value
     return Response(resp.text, resp.status_code, headers)
 
 
@@ -140,11 +142,15 @@ def proxy(request):
         "transfer-encoding",
         "connection",
     ]
-    headers = [
-        (name, value)
-        for (name, value) in resp.raw.headers.items()
-        if name.lower() not in excluded_headers
-    ]
+    # headers = [
+    #     (name, value)
+    #     for (name, value) in resp.raw.headers.items()
+    #     if name.lower() not in excluded_headers
+    # ]
+    headers = {}
+    for name, value in resp.raw.headers.items():
+        if name.lower() not in excluded_headers:
+            headers[name] = value
 
     response = Response(resp.content, resp.status_code, headers)
     return response
@@ -181,11 +187,15 @@ def requestPostAsCv(request, cv):
         "transfer-encoding",
         "connection",
     ]
-    headers = [
-        (name, value)
-        for (name, value) in resp.raw.headers.items()
-        if name.lower() not in excluded_headers
-    ]
+    # headers = [
+    #     (name, value)
+    #     for (name, value) in resp.raw.headers.items()
+    #     if name.lower() not in excluded_headers
+    # ]
+    headers = {}
+    for name, value in resp.raw.headers.items():
+        if name.lower() not in excluded_headers:
+            headers[name] = value
     return Response(resp.text, resp.status_code, headers)
 
 
@@ -194,7 +204,7 @@ def handle_login_methods(game_id):
     try:
         resp: Response = requestGetAsCv(request, "i4.7.0")
         new_login_methods = resp.get_json()
-        new_login_methods["entrance"] = [(loginMethod)]
+        new_login_methods["entrance"] = [loginMethod]
         new_login_methods["select_platform"] = True
         new_login_methods["qrcode_select_platform"] = True
         for i in new_login_methods["config"]:
@@ -246,12 +256,12 @@ def handle_create_login():
         resp: Response = proxy(request)
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
         genv.set("AutoLoginCheck", "Checked")
-        data={
-            "uuid":resp.get_json()["uuid"],
-            "game_id":request.args["game_id"]
+        data = {
+            "uuid"   : resp.get_json()["uuid"],
+            "game_id": request.args["game_id"]
         }
-        genv.set("CACHED_QRCODE_DATA",data)
-        genv.set("pending_login_info",None)
+        genv.set("CACHED_QRCODE_DATA", data)
+        genv.set("pending_login_info", None)
         #auto login start
         if genv.get(f"auto-{request.args['game_id']}", "") != "":
                 gevent.spawn(
@@ -261,55 +271,61 @@ def handle_create_login():
                     data["game_id"]
                 )
         new_config = resp.get_json()
-        new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
+        new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id=" + request.args[
+            "game_id"]
         return jsonify(new_config)
     except:
         return proxy(request)
 
 
-@app.route("/_idv-login/manualChannels",methods=["GET"])
+@app.route("/_idv-login/manualChannels", methods=["GET"])
 def _manual_list():
     return jsonify(const.manual_login_channels)
+
 
 @app.route("/_idv-login/list", methods=["GET"])
 def _list_channels():
     try:
-        body=genv.get("CHANNELS_HELPER").list_channels(request.args["game_id"])
+        body = genv.get("CHANNELS_HELPER").list_channels(request.args["game_id"])
     except Exception as e:
         body = {
             "error": str(e)
         }
     return jsonify(body)
 
+
 @app.route("/_idv-login/switch", methods=["GET"])
 def _switch_channel():
-    genv.set("CHANNEL_ACCOUNT_SELECTED",request.args["uuid"])
+    genv.set("CHANNEL_ACCOUNT_SELECTED", request.args["uuid"])
     if genv.get("CACHED_QRCODE_DATA"):
-         data=genv.get("CACHED_QRCODE_DATA")
-         genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],data["uuid"],data["game_id"])
+        data = genv.get("CACHED_QRCODE_DATA")
+        genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"], data["uuid"], data["game_id"])
     #debug only
     else:
         genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],"Kinich","aecfrt3rmaaaaajl-g-h55")
-    return {"current":genv.get("CHANNEL_ACCOUNT_SELECTED")}
+    return {"current": genv.get("CHANNEL_ACCOUNT_SELECTED")}
+
 
 @app.route("/_idv-login/del", methods=["GET"])
 def _del_channel():
-    resp={
-        "success":genv.get("CHANNELS_HELPER").delete(request.args["uuid"])
+    resp = {
+        "success": genv.get("CHANNELS_HELPER").delete(request.args["uuid"])
     }
     return jsonify(resp)
+
 
 @app.route("/_idv-login/rename", methods=["GET"])
 def _rename_channel():
-    resp={
-        "success":genv.get("CHANNELS_HELPER").rename(request.args["uuid"],request.args["new_name"])
+    resp = {
+        "success": genv.get("CHANNELS_HELPER").rename(request.args["uuid"], request.args["new_name"])
     }
     return jsonify(resp)
 
+
 @app.route("/_idv-login/import", methods=["GET"])
 def _import_channel():
-    resp={
-        "success":genv.get("CHANNELS_HELPER").manual_import(request.args["channel"],request.args["game_id"])
+    resp = {
+        "success": genv.get("CHANNELS_HELPER").manual_import(request.args["channel"], request.args["game_id"])
     }
     return jsonify(resp)
 
@@ -353,9 +369,10 @@ def get_default():
         return jsonify({"uuid":uuid})
 
 
-@app.route("/_idv-login/index",methods=['GET'])
+@app.route("/_idv-login/index", methods=['GET'])
 def _handle_switch_page():
     return Response(const.html)
+
 
 @app.route("/mpay/api/qrcode/query", methods=["GET"])
 def handle_qrcode_query():
@@ -373,15 +390,15 @@ def handle_qrcode_query():
             if genv.get("AUTO_LOGIN") and genv.get("AutoLoginCheck") is not None:
                 if len(body) == 1:
                     logger.info("正在尝试自动登录")
-                    genv.set("CHANNEL_ACCOUNT_SELECTED",body[0]["uuid"])
+                    genv.set("CHANNEL_ACCOUNT_SELECTED", body[0]["uuid"])
                     if genv.get("CACHED_QRCODE_DATA"):
-                        data=genv.get("CACHED_QRCODE_DATA")
-                        genv.get("CHANNELS_HELPER").simulate_scan(body[0]["uuid"],data["uuid"],data["game_id"])
+                        data = genv.get("CACHED_QRCODE_DATA")
+                        genv.get("CHANNELS_HELPER").simulate_scan(body[0]["uuid"], data["uuid"], data["game_id"])
                     if genv.get("CHANNEL_ACCOUNT_SELECTED") == body[0]["uuid"]:
                         logger.success("自动登录成功")
                         logger.warning("程序将在 5s 后退出")
                         time.sleep(5)
-                        sys.exit(0)
+                        exit(0)
                     else:
                         logger.warning("自动登录失败")
         resp: Response = proxy(request)
@@ -390,11 +407,12 @@ def handle_qrcode_query():
             genv.set("pending_login_info", resp.get_json()["login_info"])
         return resp
 
+
 @app.route("/mpay/api/users/login/qrcode/exchange_token", methods=['POST'])
 def handle_token_exchange():
     if genv.get("CHANNEL_ACCOUNT_SELECTED"):
         logger.info(f"尝试登录{genv.get('CHANNEL_ACCOUNT_SELECTED')}")
-        return  proxy(request)
+        return proxy(request)
     else:
         logger.info(f"捕获到渠道服登录Token.")
         resp: Response = proxy(request)
@@ -404,6 +422,7 @@ def handle_token_exchange():
                     genv.get("pending_login_info"), resp.get_json()
                 )
         return resp
+
 
 @app.route("/mpay/api/qrcode/<path>", methods=["POST"])
 @app.route("/mpay/api/reverify/<path>")
@@ -420,24 +439,27 @@ def globalProxy(path):
     else:
         return requestPostAsCv(request, "i4.7.0")
 
+
 @app.before_request
 def before_request_func():
     if request.method == "POST":
         logger.debug(f"请求 {request.method} {request.path} {request.args} {request.get_data(as_text=True)}")
     else:
         logger.debug(f"请求 {request.method} {request.path} {request.args}")
+
+
 @app.after_request
 def after_request_func(response):
     if request.content_type == "application/json":
         logger.debug(f"发送 {response.status} {response.headers} {response.get_json()}")
     return response
 
+
 class proxymgr:
     def __init__(self) -> None:
         genv.set("CHANNEL_ACCOUNT_SELECTED", "")
-        genv.set("CACHED_QRCODE_DATA",{})
-        genv.set("pending_login_info",None)
-        
+        genv.set("CACHED_QRCODE_DATA", {})
+        genv.set("pending_login_info", None)
 
     def check_port(self):
         with os.popen('netstat -ano | findstr ":443"') as r:
@@ -448,11 +470,12 @@ class proxymgr:
                 if info[1].find(":443") != -1:
                     t_pid = info[4]
                     try:
-                        readable_exe_name=psutil.Process(int(t_pid)).exe()
+                        readable_exe_name = psutil.Process(int(t_pid)).exe()
                     except:
-                        readable_exe_name="未知程序"
+                        readable_exe_name = "未知程序"
                         logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
-                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
+                    logger.warning(
+                        f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
                     input()
                     if t_pid=='4':
                         subprocess.check_call(
@@ -477,8 +500,8 @@ class proxymgr:
         # result check
         try:
             if (
-                target == None
-                or g_req.get(f"https://{target}", verify=False).status_code != 200
+                    target == None
+                    or g_req.get(f"https://{target}", verify=False).status_code != 200
             ):
                 logger.warning(
                     "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
@@ -493,13 +516,13 @@ class proxymgr:
         genv.set("URI_REMOTEIP", f"https://{target}")
         self.check_port()
         server = pywsgi.WSGIServer(
-                listener=("127.0.0.1", 443),
-                certfile=genv.get("FP_WEBCERT"),
-                keyfile=genv.get("FP_WEBKEY"),
-                application=app
-            )
+            listener=("127.0.0.1", 443),
+            certfile=genv.get("FP_WEBCERT"),
+            keyfile=genv.get("FP_WEBKEY"),
+            application=app
+        )
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
-            if bool(any(p.info['name'] == "dwrg.exe" for p in psutil.process_iter(['name']))):
+            if bool(any(p.name() == "dwrg.exe" for p in psutil.process_iter(['name']))):
                 logger.warning("检测到游戏已经启动，请关闭游戏后重新打开，否则工具不会生效！")
             else:
                 logger.info("拦截成功! 您现在可以打开游戏了")
