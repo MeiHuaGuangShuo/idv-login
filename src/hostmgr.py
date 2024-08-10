@@ -24,15 +24,16 @@ import sys
 
 FN_HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
 
+
 class hostmgr:
     def __init__(self) -> None:
-        self.logger=logger
-        if (os.path.isfile(FN_HOSTS) == False):
+        self.logger = logger
+        if not os.path.isfile(FN_HOSTS):
             self.logger.warning(f"Hosts文件不存在，尝试创建中...")
             try:
                 open(FN_HOSTS, 'w').close()
-            except:
-                self.logger.error(f"Hosts文件创建失败",stack_info=True)
+            except Exception as err:
+                self.logger.exception(f"Hosts文件创建失败", err)
                 sys.exit()
         elif not os.access(FN_HOSTS, os.W_OK):
             self.logger.warning(f"Hosts文件不可写，请检查{FN_HOSTS}是否被设置了只读权限！")
@@ -40,25 +41,28 @@ class hostmgr:
         else:
             try:
                 m_host = Hosts()
-                hostsOkay = m_host.exists(['localhost'])
+                m_host.exists(['localhost'])
             except:
                 self.logger.warning(f"Hosts文件编码异常，正在尝试删除{FN_HOSTS}。")
                 os.remove(FN_HOSTS)
                 open(FN_HOSTS, 'w').close()
                 input("按任意键继续")
 
-    def add(self, dnsname, ip) :
+    def add(self, dnsname, ip):
         m_host = Hosts()
         m_host.add([HostsEntry(entry_type="ipv4", address=ip, names=[dnsname])])
         try:
             m_host.write()
         except:
-            self.logger.error(f"写Hosts文件失败",exc_info=True)
-    def remove(self, dnsname) :
+            self.logger.error(f"写Hosts文件失败", exc_info=True)
+
+    @staticmethod
+    def remove(dnsname):
         m_host = Hosts()
         m_host.remove_all_matching(name=dnsname)
         m_host.write()
-    
-    def isExist(self, dnsname)->bool :
+
+    @staticmethod
+    def isExist(dnsname) -> bool:
         m_host = Hosts()
         return m_host.exists(names=[dnsname])
