@@ -37,10 +37,12 @@ class certmgr:
         self.logger = logger
         pass
 
-    def generate_private_key(self, bits: int):
+    @staticmethod
+    def generate_private_key(bits: int):
         return rsa.generate_private_key(public_exponent=65537, key_size=bits)
 
-    def generate_ca(self, privatekey):
+    @staticmethod
+    def generate_ca(privateKey):
         subject = issuer = x509.Name(
             [
                 x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
@@ -59,9 +61,9 @@ class certmgr:
             x509.CertificateBuilder()
             .subject_name(subject)
             .issuer_name(issuer)
-            .public_key(privatekey.public_key())
+            .public_key(privateKey.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))
+            .not_valid_before(datetime.datetime.now() - datetime.timedelta(days=3))
             .not_valid_after(
                 datetime.datetime.now() + datetime.timedelta(days=360)
             )
@@ -69,10 +71,11 @@ class certmgr:
                 x509.BasicConstraints(ca=True, path_length=None),
                 critical=True,
             )
-            .sign(privatekey, hashes.SHA256())
+            .sign(privateKey, hashes.SHA256())
         )
 
-    def generate_cert(self, hostnames: List[str], privatekey, ca_cert, ca_key):
+    @staticmethod
+    def generate_cert(hostnames: List[str], privateKey, ca_cert, ca_key):
         # generate the CSR for multiple domains
         tmp_names = [
             x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
@@ -92,7 +95,7 @@ class certmgr:
                 x509.SubjectAlternativeName([x509.DNSName(i) for i in hostnames]),
                 critical=False,
             )
-            .sign(privatekey, hashes.SHA256())
+            .sign(privateKey, hashes.SHA256())
         )
 
         # send the csr to CA
@@ -102,9 +105,9 @@ class certmgr:
             .issuer_name(ca_cert.subject)
             .public_key(csr.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now()-datetime.timedelta(days=3))#avoid using UTC
+            .not_valid_before(datetime.datetime.now() - datetime.timedelta(days=3))  # avoid using UTC
             .not_valid_after(
-                datetime.datetime.now() + datetime.timedelta(days=360)#for chrome 
+                datetime.datetime.now() + datetime.timedelta(days=360)  # for chrome
             )
             .add_extension(
                 x509.SubjectAlternativeName([x509.DNSName(i) for i in hostnames]),
@@ -122,8 +125,8 @@ class certmgr:
                 shell=True,
             )
         except Exception as e:
-            self.logger.error(
-                "导入CA证书失败。请关闭杀毒软件或加入到信任区后重试。报错信息：",
+            self.logger.exception(
+                "导入CA证书失败。请关闭杀毒软件或加入到信任区后重试。报错信息：", e,
                 stack_info=True,
                 exc_info=True,
             )
