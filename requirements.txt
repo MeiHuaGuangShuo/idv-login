@@ -1,4 +1,4 @@
-cryptography
+cryptography==42.0.8
 Faker
 Flask
 loguru
@@ -6,7 +6,8 @@ gevent
 psutil
 pycryptodome
 pyperclip
-requests
+Requests
 requests_toolbelt
 pyinstaller
 pywin32
+dnspython

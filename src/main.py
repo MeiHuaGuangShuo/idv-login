@@ -15,14 +15,23 @@
  You should have received a copy of the GNU General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  """
+import pywintypes
+import sys
+import pyperclip as cb
+if len(sys.argv) > 1 and sys.argv[-1].startswith("hms://"):
+    try:
+        cb.copy(sys.argv[-1])
+    except pywintypes.error as e:
+        print(f"Failed to write {sys.argv[-1]} to clipboard: {e}")
+        input()
+        sys.exit(1)
+    sys.exit(0)
 
-import json
-import random
-import string
 from gevent import monkey
 import gevent
 
 monkey.patch_all()
+
 import os
 import sys
 import time
@@ -38,19 +47,37 @@ import requests
 import requests.packages
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import json
+import random
+import string
 
-from certmgr import certmgr
-from hostmgr import hostmgr
-from proxymgr import proxymgr
-from channelmgr import ChannelManager
+
 from envmgr import genv
 from logger import logger
+
 
 m_certmgr = None
 m_hostmgr = None
 m_proxy = None
+m_cloudres = None
 on_exit = False
 
+import winreg as reg
+
+def register_url_scheme(scheme_name, executable_path):
+    try:
+        # 打开 HKEY_CLASSES_ROOT 注册表项
+        key = reg.CreateKey(reg.HKEY_CLASSES_ROOT, scheme_name)
+        reg.SetValue(key, '', reg.REG_SZ, f'URL:{scheme_name} Protocol')
+        reg.SetValueEx(key, 'URL Protocol', 0, reg.REG_SZ, '')
+
+        # 创建 shell\open\command 子项
+        command_key = reg.CreateKey(key, r'shell\open\command')
+        reg.SetValue(command_key, '', reg.REG_SZ, f'"{executable_path}" "%1"')
+
+        print(f'{scheme_name} URL scheme registered successfully.')
+    except Exception as e:
+        print(f'注册{scheme_name}协议失败: {e}\n请关闭杀毒软件后重启本程序。否则部分渠道登录会受影响。')
 
 def handle_exit(*_):
     global on_exit
@@ -80,39 +107,52 @@ def initialize():
         logger.error(f"没有管理员权限，已经启动新的程序，本程序将自动退出")
         sys.exit(1)
 
+        # initialize workpath
+    if not os.path.exists(genv.get("FP_WORKDIR")):
+        os.mkdir(genv.get("FP_WORKDIR"))
+    os.chdir(os.path.join(genv.get("FP_WORKDIR")))
+
+
+
+    #如果是从解释器启动，不做任何事
+    #for huawei, register hms://
+    if not sys.executable.endswith("python.exe"):
+        register_url_scheme('hms', sys.executable)
+
+
+
     # initialize the global vars at first
     genv.set("DOMAIN_TARGET", "service.mkey.163.com")
     genv.set("FP_WEBCERT", os.path.join(genv.get("FP_WORKDIR"), "domain_cert_2.pem"))
-    genv.set("FP_CONFIG", os.path.join(genv.get("FP_WORKDIR"), "config.json"))
     genv.set("FP_FAKE_DEVICE", os.path.join(genv.get("FP_WORKDIR"), "fakeDevice.json"))
     genv.set("FP_WEBKEY", os.path.join(genv.get("FP_WORKDIR"), "domain_key_2.pem"))
     genv.set("FP_CACERT", os.path.join(genv.get("FP_WORKDIR"), "root_ca.pem"))
     genv.set("FP_CHANNEL_RECORD", os.path.join(genv.get("FP_WORKDIR"), "channels.json"))
     genv.set("CHANNEL_ACCOUNT_SELECTED", "")
-    
+    CloudPath = "https://gitee.com/opguess/idv-login/raw/main/assets/cloudRes.json"
 
     # handle exit
     atexit.register(handle_exit)
 
     # initialize object
-    global m_certmgr, m_hostmgr, m_proxy
-    m_certmgr = certmgr()
-    m_hostmgr = hostmgr()
-    m_proxy = proxymgr()
+    global m_certmgr, m_hostmgr, m_proxy, m_cloudres
 
-    # initialize workpath
-    if not os.path.exists(genv.get("FP_WORKDIR")):
-        os.mkdir(genv.get("FP_WORKDIR"))
+
+
+    from cloudRes import CloudRes
+    m_cloudres=CloudRes(CloudPath,genv.get('FP_WORKDIR'))
+    m_cloudres.update_cache_if_needed()
+    genv.set("CLOUD_RES",m_cloudres)
 
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), (0x4|0x80|0x20|0x2|0x10|0x1|0x00|0x100))
     # (Can't) copy web assets! Have trouble using pyinstaller = =
     # shutil.copytree( "web_assets", genv.get("FP_WORKDIR"), dirs_exist_ok=True)
 
-    os.chdir(os.path.join(genv.get("FP_WORKDIR")))
 
-    # 关于线程安全：谁？
-    genv.set("CHANNELS_HELPER", ChannelManager())
+
+
+
 
     # disable warnings for requests
     requests.packages.urllib3.disable_warnings()
@@ -138,17 +178,18 @@ def initialize():
             sdkDevice = json.load(f)
     genv.set("FAKE_DEVICE", sdkDevice)
 
-    if not os.path.exists(genv.get("FP_CONFIG")):
-        with open(genv.get("FP_CONFIG"), "w") as f:
-            json.dump({}, f)
-            genv.set("CONFIG", {})
-    else:
-        with open(genv.get("FP_CONFIG"), "r") as f:
-            genv.set("CONFIG", json.load(f))
-
+    from certmgr import certmgr
+    from hostmgr import hostmgr
+    from proxymgr import proxymgr
+    from channelmgr import ChannelManager
+    m_certmgr = certmgr()
+    m_hostmgr = hostmgr()
+    m_proxy = proxymgr()
+    # 关于线程安全：谁？
+    genv.set("CHANNELS_HELPER", ChannelManager())
 
 def welcome():
-    print("[+] 欢迎使用第五人格登陆助手 version 5.2.2-beta")
+    print("[+] 欢迎使用第五人格登陆助手 version 5.3.2-beta")
     print(" - 官方项目地址 : https://github.com/Alexander-Porter/idv-login/")
     print(" - 本项目地址 : https://github.com/MeiHuaGuangShuo/idv-login/")
     print(" - 如果你的这个工具不能用了，请前往仓库检查是否有新版本发布或加群询问！")
@@ -158,6 +199,13 @@ def welcome():
     print(" - the Free Software Foundation, either version 3 of the License, or")
     print(" - (at your option) any later version.")
 
+def cloudBuildInfo():
+    try:
+        from buildinfo import BUILD_INFO
+        message=BUILD_INFO
+        print(f"构建信息：{message}。如需校验此版本是否被篡改，请前往官方项目地址。")
+    except:
+        print("警告：没有找到校验信息，请不要使用本工具，以免被盗号。")
 
 def get_drives():
     drives = [i for i in win32api.GetLogicalDriveStrings().split('\x00') if i]
@@ -245,15 +293,15 @@ if __name__ == "__main__":
         os.system("start " + game_path)
         os.chdir(raw)
         return True
-        
-            
+
+
     if not config.get("GamePath"):
         pool.submit(find_game)
     elif config.get("GamePath") == "disabled":
         pass
     else:
         pool.submit(start_game)
-            
+
 
     signal.signal(signal.SIGINT, handle_exit)
 
@@ -263,9 +311,9 @@ if __name__ == "__main__":
     os.chdir(os.path.join(genv.get("FP_WORKDIR")))
     logger.info(f"已将工作目录设置为 -> {genv.get('FP_WORKDIR')}")
     try:
-        welcome()
         initialize()
-
+        welcome()
+        cloudBuildInfo()
         if (os.path.exists(genv.get("FP_WEBCERT")) == False) or (
             os.path.exists(genv.get("FP_WEBKEY")) == False
         ):
@@ -300,6 +348,7 @@ if __name__ == "__main__":
             m_hostmgr.add("localhost", "127.0.0.1")
 
         logger.info("正在启动代理服务器...")
+
 
         m_proxy.run()
     except (SystemExit, gevent.exceptions.InvalidSwitchError):

@@ -19,26 +19,25 @@
 
 from flask import Flask, request, Response, jsonify
 from gevent import pywsgi
+import gevent
 from envmgr import genv
-from channelmgr import ChannelManager
 from logger import logger
-import ctypes
-from ctypes import wintypes
 
 import socket
 import requests
 import json
 import time
 import os
-import sys
 import psutil
 import const
 import subprocess
 from flask.logging import default_handler
 
 
+
 app = Flask(__name__)
 app.logger.removeHandler(default_handler)
+
 
 loginMethod = [
     {
@@ -253,12 +252,20 @@ def handle_create_login():
         }
         genv.set("CACHED_QRCODE_DATA",data)
         genv.set("pending_login_info",None)
+        #auto login start
+        if genv.get(f"auto-{request.args['game_id']}", "") != "":
+                gevent.spawn(
+                    genv.get("CHANNELS_HELPER").simulate_scan,
+                    genv.get(f"auto-{request.args['game_id']}"),
+                    data["uuid"],
+                    data["game_id"]
+                )
         new_config = resp.get_json()
         new_config["qrcode_scanners"][0]["url"] = "https://localhost/_idv-login/index?game_id="+request.args["game_id"]
         return jsonify(new_config)
     except:
-        return proxy(request) 
-                
+        return proxy(request)
+
 
 @app.route("/_idv-login/manualChannels",methods=["GET"])
 def _manual_list():
@@ -280,6 +287,9 @@ def _switch_channel():
     if genv.get("CACHED_QRCODE_DATA"):
          data=genv.get("CACHED_QRCODE_DATA")
          genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],data["uuid"],data["game_id"])
+    #debug only
+    else:
+        genv.get("CHANNELS_HELPER").simulate_scan(request.args["uuid"],"Kinich","aecfrt3rmaaaaajl-g-h55")
     return {"current":genv.get("CHANNEL_ACCOUNT_SELECTED")}
 
 @app.route("/_idv-login/del", methods=["GET"])
@@ -303,6 +313,46 @@ def _import_channel():
     }
     return jsonify(resp)
 
+@app.route("/_idv-login/setDefault", methods=["GET"])
+def _set_default_channel():
+    try:
+        genv.set(f"auto-{request.args['game_id']}",request.args["uuid"],True)
+        resp={
+            "success":True,
+        }
+    except:
+        logger.error("设置默认账号失败",exc_info=True,stack_info=True)
+        resp={
+            "success":False,
+        }
+    return jsonify(resp)
+
+@app.route("/_idv-login/clearDefault", methods=["GET"])
+def _clear_default_channel():
+    try:
+        genv.set(f"auto-{request.args['game_id']}","",True)
+        resp={
+            "success":True,
+        }
+    except:
+        resp={
+            "success":False,
+        }
+    return jsonify(resp)
+
+
+@app.route("/_idv-login/defaultChannel", methods=["GET"])
+def get_default():
+    uuid=genv.get(f"auto-{request.args['game_id']}","")
+    if uuid=="":
+        return jsonify({"uuid":""})
+    elif genv.get("CHANNELS_HELPER").query_channel(uuid)==None:
+        genv.set(f"auto-{request.args['game_id']}","",True)
+        return jsonify({"uuid":""})
+    else:
+        return jsonify({"uuid":uuid})
+
+
 @app.route("/_idv-login/index",methods=['GET'])
 def _handle_switch_page():
     return Response(const.html)
@@ -321,7 +371,7 @@ def handle_qrcode_query():
             pass
         else:
             if genv.get("AUTO_LOGIN") and genv.get("AutoLoginCheck") is not None:
-                if len(body) == 1: 
+                if len(body) == 1:
                     logger.info("正在尝试自动登录")
                     genv.set("CHANNEL_ACCOUNT_SELECTED",body[0]["uuid"])
                     if genv.get("CACHED_QRCODE_DATA"):
@@ -402,33 +452,27 @@ class proxymgr:
                     except:
                         readable_exe_name="未知程序"
                         logger.warning(f"读取进程{t_pid}的可执行文件名失败！原始输出为{r}")
-                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 请输入选项后回车。(y/n)")
-                    user_op = input()
-                    if user_op == "y":
+                    logger.warning(f"警告 : {readable_exe_name} (pid={t_pid}) 已经占用了443端口，是否强行终止该程序？ 按回车继续。")
+                    input()
+                    if t_pid=='4':
+                        subprocess.check_call(
+                            ['net','stop','http','/y'],
+                            shell=True
+                            )
+                    else:
                         subprocess.check_call(
                             ["taskkill", "/f", "/im", t_pid],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                            shell=True,
+                            shell=True
                         )
-                    elif user_op == "n":
-                        logger.info("程序结束 (原因 : 用户手动取消).")
-                        sys.exit()
-                    else:
-                        logger.warning(
-                            "程序结束 (原因 : 未知指令, 只有 'y' 或者 'n' 是可选项)."
-                        )
-                        sys.exit()
+
                     break
 
     def run(self):
-        from dnsmgr import SecureDNS,SimulatedDNS
+        from dnsmgr import DNSResolver
 
-        resolver,fallbackResolver = SecureDNS(),SimulatedDNS()
-        try:
-            target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
-        except:
-            target = fallbackResolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        resolver = DNSResolver()
+        target = resolver.gethostbyname(genv.get("DOMAIN_TARGET"))
+        logger.info(target)
         
         # result check
         try:
@@ -437,12 +481,12 @@ class proxymgr:
                 or g_req.get(f"https://{target}", verify=False).status_code != 200
             ):
                 logger.warning(
-                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+                    "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
                 )
                 target = "42.186.193.21"
         except:
             logger.warning(
-                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外用户，出现这条消息是正常的，您不必太在意）"
+                "警告 : DNS解析失败，将使用硬编码的IP地址！（如果你是海外/加速器/VPN用户，出现这条消息是正常的，您不必太在意）"
             )
             target = "42.186.193.21"
 
@@ -452,7 +496,7 @@ class proxymgr:
                 listener=("127.0.0.1", 443),
                 certfile=genv.get("FP_WEBCERT"),
                 keyfile=genv.get("FP_WEBKEY"),
-                application=app,
+                application=app
             )
         if socket.gethostbyname(genv.get("DOMAIN_TARGET")) == "127.0.0.1":
             if bool(any(p.info['name'] == "dwrg.exe" for p in psutil.process_iter(['name']))):
