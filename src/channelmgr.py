@@ -30,15 +30,21 @@ from logger import logger
 
 class channel:
     def __init__(
-        self,
-        login_info: dict,
-        user_info: dict = {},
-        ext_info: dict = {},
-        device_info: dict = {},
-        create_time: int = int(time.time()),
-        last_login_time: int = 0,
-        name: str = "",
+            self,
+            login_info: dict,
+            user_info: dict = None,
+            ext_info: dict = None,
+            device_info: dict = None,
+            create_time: int = int(time.time()),
+            last_login_time: int = 0,
+            name: str = "",
     ) -> None:
+        if device_info is None:
+            device_info = {}
+        if ext_info is None:
+            ext_info = {}
+        if user_info is None:
+            user_info = {}
         self.login_info = login_info
         self.user_info = user_info
         self.ext_info = ext_info
@@ -46,7 +52,7 @@ class channel:
         self.exchange_data = {
             "device": device_info,
             "ext_info": ext_info,
-            "user": user_info,
+            "user"  : user_info,
         }
 
         self.create_time = create_time
@@ -73,27 +79,27 @@ class channel:
 
     def get_uniSdk_data(self):
         return {
-            "user_id": self.user_info["id"],
-            "token": self.user_info["token"],
+            "user_id"      : self.user_info["id"],
+            "token"        : self.user_info["token"],
             "login_channel": self.ext_info["src_app_channel2"],
-            "udid": self.ext_info["src_udid"],
-            "app_channel": self.ext_info["src_app_channel"],
-            "sdk_version": self.ext_info["src_jf_game_id"],
-            "jf_game_id": self.ext_info["src_jf_game_id"],
-            "pay_channel": self.ext_info["src_pay_channel"],
-            "extra_data": "",
+            "udid"         : self.ext_info["src_udid"],
+            "app_channel"  : self.ext_info["src_app_channel"],
+            "sdk_version"  : self.ext_info["src_jf_game_id"],
+            "jf_game_id"   : self.ext_info["src_jf_game_id"],
+            "pay_channel"  : self.ext_info["src_pay_channel"],
+            "extra_data"   : "",
             "extra_unisdk_data": self.ext_info["extra_unisdk_data"],
-            "gv": "157",
-            "gvn": "1.5.80",
-            "cv": "a1.5.0",
+            "gv"           : "157",
+            "gvn"          : "1.5.80",
+            "cv"           : "a1.5.0",
         }
 
     def get_non_sensitive_data(self):
         return {
             "create_time": self.create_time,
             "last_login_time": self.last_login_time,
-            "uuid": self.uuid,
-            "name": self.name,
+            "uuid"       : self.uuid,
+            "name"       : self.name,
         }
 
 
@@ -127,7 +133,7 @@ class ChannelManager:
                             else:
                                 self.channels.append(channel.from_dict(item))
                 except:
-                    self.logger.error(f"读取渠道服登录信息失败。已经清空渠道服信息。",exc_info=True,stack_info=True)
+                    self.logger.error(f"读取渠道服登录信息失败。已经清空渠道服信息。", exc_info=True, stack_info=True)
                     with open(genv.get("FP_CHANNEL_RECORD"), "w") as f:
                         json.dump([], f)
         else:
@@ -153,9 +159,10 @@ class ChannelManager:
             json.dump(data, file)
         self.logger.info("渠道服登录信息已更新")
 
-    def list_channels(self,game_id: str):
+    def list_channels(self, game_id: str):
         return sorted(
-            [channel.get_non_sensitive_data()  for channel in self.channels if game_id == "" or channel.crossGames or (channel.game_id == game_id)],
+            [channel.get_non_sensitive_data() for channel in self.channels if
+             game_id == "" or channel.crossGames or (channel.game_id == game_id)],
             key=lambda x: x["last_login_time"],
             reverse=True,
         )
@@ -175,19 +182,19 @@ class ChannelManager:
 
     def manual_import(self, channle_name: str, game_id: str):
         tmpData = {
-            "code": str(random.randint(100000, 999999)),
+            "code"           : str(random.randint(100000, 999999)),
             "src_client_type": 1,
-            "login_channel": channle_name,
+            "login_channel"  : channle_name,
             "src_client_country_code": "CN",
         }
         if channle_name == "xiaomi_app":
             from channelHandler.miChannelHandler import miChannel
 
-            tmp_channel: miChannel = miChannel(tmpData,game_id=game_id)
+            tmp_channel: miChannel = miChannel(tmpData, game_id=game_id)
         if channle_name == "huawei":
             from channelHandler.huaChannelHandler import huaweiChannel
 
-            tmp_channel: huaweiChannel = huaweiChannel(tmpData,game_id=game_id)
+            tmp_channel: huaweiChannel = huaweiChannel(tmpData, game_id=game_id)
         try:
             tmp_channel.request_user_login()
             if tmp_channel.is_token_valid():
@@ -264,17 +271,17 @@ class ChannelManager:
         for channel in self.channels:
             if channel.uuid == uuid:
                 data = {
-                    "uuid": scanner_uuid,
+                    "uuid"       : scanner_uuid,
                     "login_channel": channel.channel_name,
                     "app_channel": channel.channel_name,
                     "pay_channel": channel.channel_name,
-                    "game_id": game_id,
-                    "gv": "157",
-                    "gvn": "1.5.80",
-                    "cv": "a1.5.0",
+                    "game_id"    : game_id,
+                    "gv"         : "157",
+                    "gvn"        : "1.5.80",
+                    "cv"         : "a1.5.0",
                 }
                 try:
-                    if scanner_uuid=="Kinich":
+                    if scanner_uuid == "Kinich":
                         return channel.get_uniSdk_data()
                     r = requests.get(
                         "https://service.mkey.163.com/mpay/api/qrcode/scan",
